@@ -1,0 +1,1492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>App version history — fullscreen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── walkthrough shell tokens — deliberately separate from the product's ────── */
+:root{
+  --wt-canvas:#F6F8FA; --wt-surface:#FFFFFF; --wt-border:#E2E6EB;
+  --wt-ink:#111827; --wt-ink-2:#364152; --wt-ink-3:#6B7785;
+  --wt-accent:#3438C9; --wt-accent-bg:#EEF0FF;
+}
+/* ── aiRA Design System v1.1. Two stand-ins pending tokens.css:
+      --approval-live-bg, --avatar-grad. ─────────────────────────────────────── */
+.aira{
+  --aira-bg-default:#FFFFFF; --aira-bg-subtle:#F6F8FA; --aira-bg-muted:#EEF1F4;
+  --aira-bg-canvas:#F6F8FA; --aira-bg-elevated:#FFFFFF; --aira-bg-surface:#FFFFFF;
+  --aira-bg-inverse:#111827; --aira-bg-selected:#EEF0FF; --aira-bg-hover:#EEF1F4;
+  --aira-bg-brand:#3438C9;
+  --aira-text-primary:#111827; --aira-text-secondary:#364152; --aira-text-tertiary:#6B7785;
+  --aira-text-link:#3438C9; --aira-text-inverse:#FFFFFF; --aira-text-disabled:#9AA4B2;
+  --aira-text-danger:#D92D2D; --aira-text-success:#1F7A42; --aira-text-warning:#B97300;
+  --aira-border-subtle:#EEF1F4; --aira-border-default:#E2E6EB; --aira-border-strong:#C9D0D9;
+  --aira-border-brand:#3438C9; --aira-border-focus:#4A50EF;
+  --aira-radius-xs:4px; --aira-radius-sm:6px; --aira-radius-md:8px; --aira-radius-lg:12px;
+  --aira-radius-xl:16px; --aira-radius-2xl:20px; --aira-radius-pill:999px;
+  --aira-radius-circle:50%;
+  --aira-shadow-md:0 4px 12px rgba(17,24,39,.10);
+  --aira-shadow-lg:0 8px 24px rgba(17,24,39,.16);
+  --aira-motion-fast:120ms; --aira-motion-base:200ms; --aira-motion-slow:320ms;
+  /* Status accents at the values foundations.md publishes. --aira-bg-danger is the
+     solid danger fill: white on it measures 4.81:1, which clears AA. */
+  --aira-bg-danger:#D92D2D; --aira-bg-warning-subtle:#FDF3E3;
+  --aira-bg-scrim:rgba(17,24,39,0.45);
+  --aira-brand-from:#6268FF; --aira-brand-to:#3BA7FF;
+  --approval-live-bg:#E8F3EC; --approval-live-text:#185C32;
+  --avatar-grad:linear-gradient(135deg,#6268FF,#3BA7FF);
+}
+.dark{
+  --aira-bg-surface:#131B2C; --aira-bg-selected:#1F2A55; --aira-bg-hover:#1C2640;
+  --aira-text-primary:#F4F6FA; --aira-text-secondary:#C8CFDB; --aira-text-tertiary:#94A0B4;
+  --aira-text-link:#8E97FF; --aira-text-success:#6FD995;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:Roboto,system-ui,sans-serif;background:var(--wt-canvas);
+  overflow-x:auto;overflow-y:hidden}
+button{font-family:inherit}
+
+.wt{height:100vh;min-width:1280px;display:flex;flex-direction:column;background:var(--wt-canvas)}
+.wbody{flex:1;display:flex;min-height:0}
+.stage{flex:1;min-width:0;display:flex;overflow:hidden}
+
+/* Each side is a panel: a scrolling body, a collapsed strip, and the toggle that
+   swaps between them. Both start collapsed — the app is the point; the steps are
+   there for when you need a way back. */
+.panel{position:relative;flex-shrink:0;display:flex;background:var(--wt-surface);
+  transition:width 200ms cubic-bezier(.2,0,0,1)}
+.pleft{width:340px;border-right:1px solid var(--wt-border)}
+.pright{width:400px;border-left:1px solid var(--wt-border)}
+.panel.col{width:44px;cursor:pointer}
+.panel.col:hover{background:var(--wt-accent-bg)}
+.panel.col:hover .ptog{color:var(--wt-accent);border-color:var(--wt-accent)}
+.rail{flex:1;min-width:0;overflow-y:auto;padding:48px 0 32px}
+.insp{flex:1;min-width:0;overflow-y:auto;padding:48px 24px 24px}
+.panel.col .rail,.panel.col .insp{display:none}
+.pstrip{display:none}
+.panel.col .pstrip{display:flex;flex:1;align-items:center;justify-content:center;
+  padding-top:44px}
+.pstrip span{writing-mode:vertical-rl;transform:rotate(180deg);
+  font-size:11px;line-height:16px;font-weight:700;letter-spacing:0.06em;
+  text-transform:uppercase;color:var(--wt-ink-3)}
+.ptog{position:absolute;top:12px;z-index:2;width:24px;height:24px;padding:0;
+  display:flex;align-items:center;justify-content:center;border-radius:6px;
+  border:1px solid var(--wt-border);background:var(--wt-surface);
+  color:var(--wt-ink-3);cursor:pointer}
+.pleft .ptog{right:12px}
+.pright .ptog{left:12px}
+.panel.col .ptog{left:50%;right:auto;transform:translateX(-50%)}
+.ptog:hover{background:var(--wt-accent-bg);color:var(--wt-accent);
+  border-color:var(--wt-accent)}
+@media (prefers-reduced-motion:reduce){.panel{transition:none}}
+
+.rsec{padding:0 0 20px}
+.rsec .rh{padding:0 24px;margin-bottom:8px;display:flex;flex-direction:column;gap:4px}
+.rsec .rt{font-size:11px;line-height:16px;font-weight:700;letter-spacing:0.06em;
+  text-transform:uppercase;color:var(--wt-ink-3)}
+.rsec .rd{font-size:13px;line-height:20px;color:var(--wt-ink-3)}
+.rrow{display:flex;align-items:center;gap:16px;width:100%;padding:8px 24px;border:0;
+  background:none;text-align:left;cursor:pointer}
+.rrow:hover{background:var(--wt-accent-bg)}
+.rrow .ri{width:28px;flex-shrink:0;font-size:13px;line-height:20px;color:var(--wt-ink-3)}
+.rrow .rn{font-size:14px;line-height:20px;color:var(--wt-ink)}
+.rrow.on{background:var(--wt-accent-bg)}
+.rrow.on .ri,.rrow.on .rn{color:var(--wt-accent);font-weight:500}
+
+.iblk{margin-bottom:24px}
+.ih{font-size:11px;line-height:16px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;
+  color:var(--wt-ink-3);margin-bottom:12px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.hchip{font-size:11px;line-height:16px;font-weight:700;letter-spacing:0.06em;
+  color:var(--wt-accent);background:var(--wt-accent-bg);border-radius:4px;padding:2px 8px}
+.hchip.now{background:var(--wt-accent);color:#fff}
+.trow{display:flex;align-items:center;gap:12px;width:100%;margin-bottom:8px;padding:12px 16px;
+  border:1px solid var(--wt-border);border-radius:12px;background:var(--wt-surface);
+  text-align:left;cursor:pointer}
+.trow:hover{background:var(--wt-accent-bg)}
+.trow .tl{flex:1;font-size:14px;line-height:20px;color:var(--wt-ink)}
+.trow .tt{font-size:11px;line-height:16px;font-weight:700;letter-spacing:0.06em;color:var(--wt-ink-3)}
+.note{font-size:13px;line-height:20px;color:var(--wt-ink-2)}
+.note b{font-weight:500;color:var(--wt-ink)}
+.helpcard{border:1px solid var(--wt-border);border-radius:12px;padding:16px;
+  font-size:13px;line-height:20px;color:var(--wt-ink-2)}
+.helpcard b{font-weight:500;color:var(--wt-ink)}
+.drv{display:flex;align-items:center;gap:12px;width:100%;margin-bottom:8px;padding:10px 16px;
+  border:1px solid var(--wt-border);border-radius:12px;background:var(--wt-surface);
+  text-align:left;cursor:pointer;font-size:13px;line-height:20px;color:var(--wt-ink-2)}
+.drv:hover{background:var(--wt-accent-bg)}
+.drv.on{border-color:var(--wt-accent);color:var(--wt-accent)}
+
+
+.wtop{height:64px;flex-shrink:0;display:flex;align-items:center;gap:12px;padding:0 24px;
+  background:var(--wt-surface);border-bottom:1px solid var(--wt-border)}
+.wtop .wname{font-size:16px;line-height:24px;font-weight:500;color:var(--wt-ink)}
+.wtop .sep{flex:1}
+.sid{font-size:11px;line-height:16px;font-weight:700;letter-spacing:0.06em;
+  color:var(--wt-accent);background:var(--wt-accent-bg);border-radius:4px;padding:2px 8px}
+.wtop .sname{font-size:14px;line-height:20px;color:var(--wt-ink-2)}
+.wbtn{display:flex;align-items:center;gap:8px;height:36px;padding:0 16px;border-radius:8px;
+  border:1px solid var(--wt-border);background:var(--wt-surface);font-size:14px;line-height:20px;
+  color:var(--wt-ink-2);cursor:pointer}
+.wbtn:hover{background:var(--wt-accent-bg)}
+.wbtn.on{background:var(--wt-accent-bg);border-color:var(--wt-accent);color:var(--wt-accent)}
+.wbtn[disabled]{opacity:.45;cursor:default}
+.wbtn[disabled]:hover{background:var(--wt-surface)}
+
+/* No card, no scale. Every box from the stage down has to be a flex container,
+   or the app root's height:100% has nothing to measure against and overflows. */
+.holder{position:relative;flex:1;min-width:0;display:flex}
+.frame{flex:1;min-width:0;overflow:hidden;background:#fff;display:flex}
+#app{flex:1;min-width:0;display:flex}
+
+/* Click-targets mode outlines only what is genuinely wired. */
+body.targets [data-live]{outline:2px dashed var(--wt-accent);outline-offset:2px}
+
+/* The product's own focus ring, driven by the design system's focus token. */
+.aira [data-live]:focus-visible{outline:2px solid var(--aira-border-focus);outline-offset:2px;
+  border-radius:var(--aira-radius-xs)}
+.wt button:focus-visible{outline:2px solid var(--wt-accent);outline-offset:2px}
+
+/* Thumb only, no track — the aiRA scrollbar treatment. */
+.scroller::-webkit-scrollbar{width:6px;height:6px}
+.scroller::-webkit-scrollbar-track{background:transparent}
+.scroller::-webkit-scrollbar-thumb{background:var(--aira-border-strong);border-radius:999px}
+
+.reset{all:unset;box-sizing:border-box;display:block;cursor:pointer}
+.qbox::placeholder{color:var(--aira-text-tertiary);opacity:1}
+/* The bordered wrapper IS the field; the input is just the text inside it, so the
+   focus ring goes round the whole control rather than round the caret's box. */
+.aira .qwrap:focus-within{outline:2px solid var(--aira-border-focus);outline-offset:2px}
+.aira .qbox:focus-visible{outline:none}
+
+/* In an open menu, hover wins: the selected row drops its fill the moment the
+   pointer is in the list, so only one row is ever grey. The tick keeps saying
+   which one is selected, because colour is never the only signal. */
+.aira .mitem{transition:background var(--aira-motion-fast) ease-out}
+.aira .mitem:hover{background:var(--aira-bg-hover)}
+.aira .mitem.sel{background:var(--aira-bg-hover)}
+.aira .menu:hover .mitem.sel{background:transparent}
+.aira .menu:hover .mitem:hover{background:var(--aira-bg-hover)}
+
+/* Hover lives in CSS: an inline style has no state. Each rule sits after .reset
+   so it outranks the `all:unset` that would otherwise clear the background. */
+.aira .hov{transition:background var(--aira-motion-fast) ease-out}
+.aira .hov:hover{background:var(--aira-bg-hover)}
+@media (prefers-reduced-motion:reduce){.aira .hov,.aira .ventry{transition:none}}
+/* A version entry hovers as one piece — the deploy line and, once expanded, the
+   changes underneath it, so the hover says what the click will act on. */
+/* Inset and rounded, so the band reads as the entry rather than as a full-bleed
+   stripe. The 8px it gives up here comes back as row padding, so the content
+   still sits 20px from the drawer edge. */
+.aira .ventry{margin:0 8px;border-radius:var(--aira-radius-md);
+  transition:background var(--aira-motion-fast) ease-out}
+.aira .ventry:hover{background:var(--aira-bg-hover)}
+/* The rule vanishes into the band it crosses, which would leave the next entry's
+   16px lead-in floating on white just below it. Hide that stub too, so the hover
+   ends where the band ends. */
+.aira .ventry:hover + .ventry .ttop{visibility:hidden}
+</style>
+</head>
+<body>
+<div class="wt">
+  <div class="wbody">
+    <div class="stage" id="stage">
+      <noscript><div style="margin:auto;max-width:480px;padding:24px;font:14px/22px
+        Roboto,system-ui,sans-serif;color:#364152">This prototype is driven by
+        JavaScript, which is switched off here. Open the file in a browser —
+        a preview or snapshot viewer will only ever show a blank page.</div></noscript>
+      <div class="holder" id="holder">
+        <div class="frame" id="frame"><div id="app" class="aira"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ═══════════════════════════════════════════════════════════════════════════
+   Version history walkthrough — the interactive form of the design canvas.
+   Geometry, copy and tokens are lifted from build-boards.mjs so the stage is
+   indistinguishable from the boards; behaviour is what the boards could not show.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+  .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+/* ── type ramp — every entry is a real row of foundations.md ─────────────── */
+const F = {
+  h2:   'font:600 22px/30px Roboto,system-ui,sans-serif',
+  h3:   'font:600 18px/26px Roboto,system-ui,sans-serif',
+  h4:   'font:600 16px/24px Roboto,system-ui,sans-serif',
+  bodyLg:'font:400 16px/26px Roboto,system-ui,sans-serif',
+  body: 'font:400 14px/20px Roboto,system-ui,sans-serif',
+  bodyM:'font:500 14px/20px Roboto,system-ui,sans-serif',
+  sm:   'font:400 13px/20px Roboto,system-ui,sans-serif',
+  lblMd:'font:500 14px/20px Roboto,system-ui,sans-serif',
+  lblSm:'font:500 12px/16px Roboto,system-ui,sans-serif',
+};
+const semi = e => (e && !e.trim().endsWith(';') ? ';' : '');
+const row    = (g, x='') => `display:flex;align-items:center;gap:${g}px;${x}${semi(x)}`;
+const rowTop = (g, x='') => `display:flex;align-items:flex-start;gap:${g}px;${x}${semi(x)}`;
+const col    = (g, x='') => `display:flex;flex-direction:column;gap:${g}px;${x}${semi(x)}`;
+
+/* ── icons — lucide, strokeWidth 1.5, currentColor, sizes 16 and 20 only ─── */
+const ic = (d, s=20) =>
+  `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" `
+  + `stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:none">${d}</svg>`;
+const I = {
+  chevDown: s => ic('<path d="M6 9l6 6 6-6"/>', s),
+  chevRight:s => ic('<path d="M9 18l6-6-6-6"/>', s),
+  chevLeft: s => ic('<path d="M15 18l-6-6 6-6"/>', s),
+  close:    s => ic('<path d="M18 6L6 18M6 6l12 12"/>', s),
+  more:     s => ic('<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>', s),
+  chat:     s => ic('<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>', s),
+  archive:  s => ic('<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 001 1h12a1 1 0 001-1V8"/><path d="M10 12h4"/>', s),
+  error:    s => ic('<circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>', s),
+  ext:      s => ic('<path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/>', s),
+  search:   s => ic('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>', s),
+  /* lucide pen-line — rename, which only the owner is offered */
+  penLine:  s => ic('<path d="M12 20h9"/>'
+    + '<path d="M16.376 3.622a1 1 0 013.002 3.002L7.368 18.635a2 2 0 01-.855.506l-2.872.838'
+    + 'a.5.5 0 01-.62-.62l.838-2.872a2 2 0 01.506-.854z"/>', s),
+  /* lucide check — the selected row in an open menu */
+  tick:     s => ic('<path d="M20 6L9 17l-5-5"/>', s),
+  /* lucide circle-check — the success toast's mark */
+  check:    s => ic('<circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>', s),
+  /* lucide info — the neutral toast's mark */
+  info:     s => ic('<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>', s),
+  /* lucide triangle-alert — the destructive modal's mark */
+  warn:     s => ic('<path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L14.7 3.9a2 2 0 00-3.4 0z"/>'
+                  + '<path d="M12 9v4"/><path d="M12 17h.01"/>', s),
+  /* lucide archive-restore — bringing an archived app back */
+  restore:  s => ic('<rect x="3" y="3" width="18" height="5" rx="1"/>'
+                  + '<path d="M5 8v11a1 1 0 001 1h3"/><path d="M19 8v11a1 1 0 01-1 1h-3"/>'
+                  + '<path d="M12 21v-8"/><path d="M9 16l3-3 3 3"/>', s),
+  eye:      s => ic('<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>', s),
+  /* lucide users — "shared with named people" */
+  users:    s => ic('<path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>'
+                  + '<path d="M22 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>', s),
+  /* the column sort mark — arrow-up-down */
+  sort:     s => ic('<path d="M8 4v16M8 4L5 7M8 4l3 3"/><path d="M16 20V4M16 20l3-3M16 20l-3-3"/>', s),
+};
+const sparkle = (s=24) =>
+  `<svg width="${s}" height="${s}" viewBox="0 0 24 24" style="flex:none"><defs>`
+  + `<linearGradient id="g${s}" x1="0" y1="0" x2="1" y2="1">`
+  + `<stop offset="0" stop-color="var(--aira-brand-from)"/>`
+  + `<stop offset="1" stop-color="var(--aira-brand-to)"/></linearGradient></defs>`
+  + `<path d="M12 2.5l1.9 5.3 5.3 1.9-5.3 1.9L12 17l-1.9-5.4L4.8 9.7l5.3-1.9z" fill="url(#g${s})"/>`
+  + `<path d="M19 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z" fill="url(#g${s})"/></svg>`;
+
+/* ── atoms ──────────────────────────────────────────────────────────────── */
+const tag = t =>
+  `<span style="${F.lblSm};color:var(--aira-text-secondary);background:var(--aira-bg-muted);`
+  + `border-radius:var(--aira-radius-xs);padding:4px 8px">${esc(t)}</span>`;
+/* AiraPill status="live" — one of the six approval lifecycle states. */
+const pillLive = () =>
+  `<span style="${F.lblSm};color:var(--approval-live-text);background:var(--approval-live-bg);`
+  + `border-radius:var(--aira-radius-pill);padding:4px 12px">Live</span>`;
+/* AiraChip tone="blocked" — a transient status, which may never be a Pill. */
+const chipBlocked = t =>
+  `<span style="${row(8)};${F.lblSm};color:var(--aira-text-danger);background:var(--aira-bg-subtle);`
+  + `border:1px solid var(--aira-border-default);border-radius:var(--aira-radius-pill);padding:4px 12px">`
+  + `<span style="width:8px;height:8px;border-radius:var(--aira-radius-pill);background:currentColor;`
+  + `flex:none"></span>${esc(t)}</span>`;
+const avatar = (init, s=32) =>
+  `<span aria-label="${esc(init)}" style="width:${s}px;height:${s}px;`
+  + `border-radius:var(--aira-radius-pill);background:var(--avatar-grad);color:var(--aira-text-inverse);`
+  + `font:500 ${s>=32?'14px/20px':'12px/16px'} Roboto,sans-serif;display:inline-flex;`
+  + `align-items:center;justify-content:center;flex:none">${esc(init)}</span>`;
+const btn = (t, kind='ghost') => kind === 'primary'
+  ? `<span style="${F.bodyM};color:var(--aira-text-inverse);background:var(--aira-bg-brand);`
+    + `border-radius:var(--aira-radius-md);padding:8px 16px">${esc(t)}</span>`
+  : `<span style="${F.bodyM};color:var(--aira-text-secondary);`
+    + `border:1px solid var(--aira-border-default);border-radius:var(--aira-radius-md);`
+    + `padding:8px 16px">${esc(t)}</span>`;
+
+const email = n => n ? n + '@capillarytech.com' : '';
+const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+
+/* ═══ data ══════════════════════════════════════════════════════════════════
+   Loyalty / CRM throughout. campaign_zones carries the canonical history the
+   boards were drawn from — 21 deploys, because the count says 21; the boards
+   cropped it at twelve rows and the prototype does not need to. ─────────── */
+
+const CHANGE_POOL = [
+  ['Added chart — Redemption rate by zone','Changed filter — Tier default set to Gold and above','Changed query — Zone revenue rollup'],
+  ['Changed chart — Members by zone now stacked by tier','Removed metric — Average basket size'],
+  ['Added filter — Store cluster','Changed query — Member counts exclude test accounts'],
+  ['Fixed query — Zone revenue double-counted returns'],
+  ['Added chart — Tier movement by month','Added metric — Revenue per member'],
+  ['Changed layout — KPI row moved above the charts'],
+  ['Added filter — Date range','Changed query — Redemption window set to 90 days'],
+  ['Removed chart — Points liability by tier'],
+  ['Changed metric — Redemption rate now excludes expired points'],
+  ['Added chart — Enrolments by store'],
+  ['Fixed filter — Tier selection reset on reload'],
+  ['Added chart — Members by zone','Added metric — Members in zone'],
+  ['Changed query — Enrolment source grouping'],
+  ['Added metric — Points issued this period'],
+  ['Fixed chart — Zone labels truncated at 12 characters'],
+  ['Changed filter — Default period set to last 30 days'],
+  ['Added chart — Lapsed members by tier'],
+  ['Removed filter — Legacy segment picker'],
+  ['Changed metric — Revenue per member now net of returns'],
+  ['Added query — Zone membership counts'],
+  ['Added chart — Members by tier','Added filter — Tier'],
+];
+
+/* The twelve most recent entries match the canvas exactly; v9 back to v1 extend
+   it so the list has the six month groups a 21-deploy history really has. */
+const CZ = [
+  ['v21','Sep 9, 2026, 11:06 AM IST','September 2026','ann.francis'],
+  ['v20','Sep 6, 2026, 4:12 PM IST','September 2026','amogh.shet'],
+  ['v19','Aug 30, 2026, 6:02 PM IST','August 2026','ann.francis'],
+  ['v18','Aug 30, 2026, 11:20 AM IST','August 2026','punya.shetty'],
+  ['v17','Aug 22, 2026, 2:48 PM IST','August 2026','amogh.shet'],
+  ['v16','Aug 22, 2026, 11:09 AM IST','August 2026','ann.francis'],
+  ['v15','Aug 14, 2026, 4:31 PM IST','August 2026','ann.francis'],
+  ['v14','Aug 14, 2026, 9:55 AM IST','August 2026','punya.shetty'],
+  ['v13','Aug 11, 2026, 5:20 PM IST','August 2026','ann.francis'],
+  ['v12','Aug 7, 2026, 12:41 PM IST','August 2026','amogh.shet'],
+  ['v11','Aug 4, 2026, 9:08 AM IST','August 2026','ann.francis'],
+  ['v10','Jul 30, 2026, 3:15 PM IST','July 2026','punya.shetty'],
+  ['v9','Jul 22, 2026, 1:02 PM IST','July 2026','ann.francis'],
+  ['v8','Jul 15, 2026, 10:47 AM IST','July 2026','amogh.shet'],
+  ['v7','Jul 3, 2026, 4:55 PM IST','July 2026','ann.francis'],
+  ['v6','Jun 24, 2026, 11:31 AM IST','June 2026','punya.shetty'],
+  ['v5','Jun 12, 2026, 2:19 PM IST','June 2026','ann.francis'],
+  ['v4','Jun 2, 2026, 9:40 AM IST','June 2026','amogh.shet'],
+  ['v3','May 20, 2026, 3:28 PM IST','May 2026','ann.francis'],
+  ['v2','May 8, 2026, 12:05 PM IST','May 2026','punya.shetty'],
+  ['v1','Apr 28, 2026, 10:14 AM IST','April 2026','ann.francis'],
+].map(([v, when, month, deployer], i) =>
+  ({ v, when, month, deployer, changes: CHANGE_POOL[i % CHANGE_POOL.length] }));
+
+/* The failed attempt from edge board E2. Armed by a driver rather than always
+   present, because a failure is a moment rather than a permanent row of the list. */
+const CZ_FAILED = { v:null, failed:true, month:'September 2026',
+  when:'Sep 9, 2026, 10:12 AM IST', deployer:'ann.francis',
+  reason:'The zone revenue query timed out.' };
+
+/* Every other app's history is generated from its version number, so an app at
+   v5 has exactly five deploys and the count can never disagree with the list. */
+const MONTHS = ['September 2026','August 2026','July 2026','June 2026','May 2026','April 2026'];
+const DAYS = [9,6,30,22,14,7,3,27,19,11,4];
+const TIMES = ['11:06 AM IST','4:12 PM IST','9:55 AM IST','2:48 PM IST','5:20 PM IST','10:14 AM IST'];
+const SHORT = { 'September 2026':'Sep','August 2026':'Aug','July 2026':'Jul',
+  'June 2026':'Jun','May 2026':'May','April 2026':'Apr' };
+function genHistory(topVersion, people) {
+  const out = [];
+  for (let k = 0; k < topVersion; k++) {
+    const month = MONTHS[Math.min(Math.floor(k / 2), MONTHS.length - 1)];
+    const day = DAYS[k % DAYS.length];
+    out.push({
+      v: 'v' + (topVersion - k), month,
+      when: `${SHORT[month]} ${day}, 2026, ${TIMES[k % TIMES.length]}`,
+      deployer: people[k % people.length],
+      changes: CHANGE_POOL[(k + 3) % CHANGE_POOL.length],
+    });
+  }
+  return out;
+}
+
+const APPS = [
+  { id:'campaign_zones', name:'campaign_zones.app', v:'v21', role:'editor',
+    by:'ann.francis', upd:'ann.francis', date:'Sep 9, 2026', time:'11:06 AM IST',
+    own:'mine', history:CZ },
+  { id:'loyalty_health', name:'loyalty_health.app', v:'v1', role:'viewer', shared:true,
+    by:'amogh.shet', upd:'amogh.shet', date:'Sep 7, 2026', time:'3:14 PM IST',
+    own:'shared', history:genHistory(1, ['amogh.shet']) },
+  { id:'trendly_sales', name:'trendly-sales.app', v:'v5', role:'editor', shared:true,
+    by:'amogh.shet', upd:'punya.shetty', date:'Aug 20, 2026', time:'3:56 PM IST',
+    own:'shared', history:genHistory(5, ['punya.shetty','amogh.shet']) },
+  { id:'trendly_q3', name:'trendly-q3.app', v:'v1', role:'editor', shared:true,
+    by:'ann.francis', upd:'ann.francis', date:'Aug 27, 2026', time:'11:55 PM IST',
+    own:'mine', history:genHistory(1, ['amogh.shet']) },
+  { id:'program_health', name:'program-health.app', v:'v1', role:'editor',
+    by:'ann.francis', upd:'ann.francis', date:'Aug 26, 2026', time:'3:51 PM IST',
+    own:'mine', history:genHistory(1, ['amogh.shet']) },
+  { id:'business_perf', name:'Business performance', v:'v7', role:'viewer', shared:true,
+    by:'bhaskar.priyadarshi', upd:'bhaskar.priyadarshi', date:'Aug 18, 2026', time:'7:07 PM IST',
+    own:'shared', history:genHistory(7, ['bhaskar.priyadarshi']) },
+  { id:'category_mig', name:'Category migration', v:'v6', role:'viewer', shared:true,
+    by:'siddhanth.gupta', upd:'siddhanth.gupta', date:'Aug 5, 2026', time:'2:26 PM IST',
+    own:'shared', history:genHistory(6, ['siddhanth.gupta']) },
+  { id:'tier_movement', name:'tier_movement.app', v:'v3', role:'editor', shared:true,
+    by:'ann.francis', upd:'ann.francis', date:'Aug 1, 2026', time:'10:12 AM IST',
+    own:'mine', history:genHistory(3, ['ann.francis','punya.shetty']) },
+];
+const APP = id => APPS.find(a => a.id === id);
+/* Deploy mutates an app's version and history, so keep a pristine copy to reset to. */
+APPS.forEach(a => { a._0 = { v:a.v, name:a.name, date:a.date, time:a.time, upd:a.upd,
+  history:a.history.slice() }; });
+
+/* ═══ state — one object, one render ══════════════════════════════════════ */
+const S = {
+  screen:'apps',        // 'apps' | 'app'
+  filter:'all',         // 'all' | 'mine' | 'shared'
+  status:'active',      // 'all' | 'active' | 'archived'
+  query:'',             // the live search box
+  menu:null,            // app id whose overflow menu is open
+  drawer:null,          // app id whose history drawer is open
+  open:[],              // version ids expanded inside the drawer
+  folded:[],            // month keys folded away
+  archived:[],          // app ids archived out of the Active list
+  failedAttempt:false,  // arm the failed deploy on campaign_zones
+  modal:null,           // { kind:'archive'|'restore', id } — at most one
+  renaming:null,        // app id whose name cell is currently an input
+  rename:'',            // the draft name being typed into it
+  toast:null,           // { title, body, action } — at most one
+  appOpen:null,         // app id shown on the 'app' screen
+  drawerScroll:0,       // owned by state, never read back at render time
+  focus:null,           // focus key, restored after every render
+  inert:null,           // label of the last inert control pressed
+  trigger:null,         // the control a panel was opened from, for focus return
+};
+
+/* derived — computed, never stored */
+const inBucket = a =>
+  S.filter === 'all'    ? true
+  : S.filter === 'mine' ? a.own === 'mine'
+  : a.own === 'shared';
+const matchesQuery = a => {
+  const q = S.query.trim().toLowerCase();
+  return !q || a.name.toLowerCase().indexOf(q) >= 0;
+};
+const visibleApps = () => APPS.filter(a => {
+  const arch = S.archived.indexOf(a.id) >= 0;
+  if (S.status === 'active' && arch) return false;
+  if (S.status === 'archived' && !arch) return false;
+  return inBucket(a) && matchesQuery(a);
+});
+const canEdit = a => a.role === 'editor';
+/* Sharing, renaming and archiving belong to whoever made the app. Being an editor
+   on someone else's app buys you edits and history, not control over the thing
+   itself — so those three never appear on a row that was shared with you. */
+const isOwner = a => a.own === 'mine';
+const historyRows = id => {
+  const a = APP(id);
+  let rows = a.history.slice();
+  if (id === 'campaign_zones' && S.failedAttempt) rows = [CZ_FAILED].concat(rows);
+  return rows;   /* newest first, always — the list has no sort control */
+};
+const monthGroups = rows => {
+  const out = [];
+  rows.forEach(r => {
+    let g = out[out.length - 1];
+    if (!g || g.key !== r.month) { g = { key:r.month, rows:[] }; out.push(g); }
+    g.rows.push(r);
+  });
+  return out;
+};
+
+/* ═══ the product surface ════════════════════════════════════════════════ */
+const DRAWER_W = 480;
+const ROW_PAD = 16;       // vertical breathing room on a deploy row
+const CHANGE_PAD = 8;     // extra clearance at each end of a disclosed block
+const GAP = 16;
+const ROW_INSET = 16;     // the table band insets its own text
+const COL = { timeline:24 };
+const W_COLS = ['28%','24%','24%','16%'];
+
+const live = (label, key) => ` data-live="${esc(label)}" data-fk="${esc(key)}"`;
+
+const RAIL_ICONS = [
+  '<path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/>', null,
+  '<path d="M20.6 13.4L13.4 20.6a2 2 0 01-2.8 0l-7.2-7.2a2 2 0 010-2.8l7.2-7.2a2 2 0 012.8 0l7.2 7.2a2 2 0 010 2.8z"/><path d="M8 8h.01"/>',
+  '<path d="M3 11l18-8-8 18-2-8z"/>',
+  '<rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="8" rx="1"/>',
+  '<rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13M7 8V5h10v3"/>',
+  '<path d="M17 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>',
+  '<circle cx="12" cy="12" r="3"/><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/>',
+  '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/>',
+  '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8M8 16h5"/>',
+];
+function railChrome() {
+  const items = RAIL_ICONS.map((d, i) => {
+    const on = i === 1;
+    return `<div style="${row(0,'justify-content:center')}width:56px;height:44px;`
+      + `border-radius:var(--aira-radius-md);color:var(--aira-text-${on?'primary':'tertiary'});`
+      + `background:${on?'var(--aira-bg-selected)':'transparent'}">`
+      + (on ? sparkle(20) : ic(d, 20)) + `</div>`;
+  }).join('');
+  return `<div class="dark" style="${col(4,'align-items:center;padding:16px 0;width:88px;'
+    + 'flex:none;background:var(--aira-bg-inverse)')}">`
+    + `<div style="${row(0,'justify-content:center')}width:56px;height:48px;margin-bottom:8px">`
+    + sparkle(24) + `</div>` + items + `</div>`;
+}
+function topBar() {
+  return `<div style="${row(0,'height:56px;flex:none;padding:0 24px;'
+    + 'background:var(--aira-bg-elevated);border-bottom:1px solid var(--aira-border-default)')}">`
+    + `<span style="${F.h4};color:var(--aira-text-primary)">aiRA Playground</span>`
+    + `<span style="color:var(--aira-text-tertiary);margin-left:8px;display:flex">`
+    + I.chevDown(20) + `</span><span style="flex-grow:1"></span>`
+    + `<span style="${row(8,'border:1px solid var(--aira-border-default);'
+      + 'border-radius:var(--aira-radius-md);padding:8px 16px;' + F.bodyM
+      + ';color:var(--aira-text-secondary)')}">` + I.chat(20) + `Sessions</span>`
+    + `<span style="margin-left:16px">${avatar('AF', 32)}</span></div>`;
+}
+
+/* ── the Apps listing ───────────────────────────────────────────────────── */
+function appsPanel() {
+  const person = e => `<span title="${esc(e)}" style="${F.sm};`
+    + `color:var(--aira-text-secondary);display:block;overflow:hidden;`
+    + `text-overflow:ellipsis;white-space:nowrap">${esc(e)}</span>`;
+
+  /* Same mark, opposite direction: on your own app it means you gave access away. */
+  const access = a => a.shared
+    ? `<span style="color:var(--aira-text-tertiary);display:flex" title="`
+      + (isOwner(a) ? 'Shared with others' : 'Shared with you')
+      + `">${I.users(16)}</span>` : '';
+
+  const appRow = a => {
+    const on = S.drawer === a.id;
+    /* The row is the target, not the name inside it — a table row that opens
+       something should be clickable across its whole width. The actions button
+       stops the click from reaching it. */
+    const editing = S.renaming === a.id;
+    /* While the name is being edited the row stops being a way into the app —
+       a click inside the field must not navigate out from under the caret. */
+    /* AiraInlineEdit, composed the way the watchlist says to ship it today:
+       an Input and a Button pair. The keys are accelerators on top, not the only
+       way out — a control that can only be committed by knowing a shortcut is a
+       control most people cannot commit. */
+    const ebtn = (label, key, glyph, ink) =>
+      `<button class="reset hov" style="${row(0,'justify-content:center')}width:32px;`
+      + `height:32px;flex:none;border-radius:var(--aira-radius-md);color:${ink}"`
+      + live(label, key) + `>${glyph(20)}</button>`;
+    const nameCell = editing
+      /* The cell keeps a gutter so the field and its 4px focus ring stay inside
+         the column instead of running into Created by. */
+      ? `<div style="${row(8,`width:${W_COLS[0]};flex:none;padding-right:16px`)}">`
+        + `<span class="qwrap" style="${row(0,'flex:1;min-width:0;height:36px;'
+            + 'border:1px solid var(--aira-border-default);'
+            + 'border-radius:var(--aira-radius-md);padding:0 12px;'
+            + 'background:var(--aira-bg-elevated)')}">`
+          + `<input class="qbox" id="rbox" type="text" value="${esc(S.rename)}" `
+          + `aria-label="App name" style="${F.bodyM};color:var(--aira-text-primary);`
+          + `border:0;background:none;padding:0;flex:1;min-width:0"`
+          + live('App name', 'rename') + `></span>`
+        + ebtn('Save name', 'rsave', I.tick, 'var(--aira-text-link)')
+        + ebtn('Cancel rename', 'rcancel', I.close, 'var(--aira-text-tertiary)')
+        + `</div>`
+      : `<div style="${row(8,`width:${W_COLS[0]};flex:none`)}">`
+        + `<span style="${F.bodyM};color:var(--aira-text-primary)">${esc(a.name)}</span>`
+        + tag(a.v) + access(a) + `</div>`;
+    return `<div class="${on || editing ? '' : 'hov'}"`
+      + (editing ? '' : ' role="button" tabindex="0"')
+      + ` style="${row(0,`padding:14px ${ROW_INSET}px;`
+      + (editing ? '' : 'cursor:pointer;')
+      + 'border-bottom:1px solid var(--aira-border-subtle);'
+      + (on ? 'background:var(--aira-bg-subtle);' : ''))}"`
+      + (editing ? '' : live('Open ' + a.name, 'name:' + a.id)) + `>`
+      + nameCell
+      + `<div style="width:${W_COLS[1]};flex:none">${person(email(a.by))}</div>`
+      + `<div style="width:${W_COLS[2]};flex:none">${person(email(a.upd))}</div>`
+      + `<div style="${col(0,`width:${W_COLS[3]};flex:none`)}">`
+      + `<span style="${F.bodyM};color:var(--aira-text-primary)">${esc(a.date)}</span>`
+      + `<span style="${F.sm};color:var(--aira-text-tertiary);`
+      + `font-variant-numeric:tabular-nums">${esc(a.time)}</span></div>`
+      + `<div style="${row(0,'flex-grow:1')}">`
+      + `<button class="reset${S.menu === a.id ? '' : ' hov'}" `
+      + `style="${row(0,'justify-content:center')}width:32px;height:32px;`
+      + `border-radius:var(--aira-radius-md);color:var(--aira-text-secondary);`
+      + (S.menu === a.id ? 'background:var(--aira-bg-hover)' : '') + `"`
+      + live('Row actions — ' + a.name, 'more:' + a.id) + `>${I.more(20)}</button>`
+      + `</div></div>`;
+  };
+
+  /* Only the column the list is actually ordered by carries a sort mark; the rest
+     are labels, and a mark on a column that does not sort is a false affordance. */
+  const hCell = (h, w, sorts) => `<div style="${row(4,`${w?`width:${w};flex:none`:'flex:1;min-width:0'};`
+    + `white-space:nowrap;color:var(--aira-text-primary);` + F.lblMd)}">${esc(h)}`
+    + (sorts ? `<span style="color:var(--aira-text-tertiary);display:flex">${I.sort(16)}</span>` : '')
+    + `</div>`;
+  const head = `<div style="${row(0,`padding:12px ${ROW_INSET}px;`
+      + 'background:var(--aira-bg-subtle);'
+      + 'border-bottom:1px solid var(--aira-border-default)')}">`
+    + ['App name','Created by','Updated by','Last deployed']
+        .map((h, i) => hCell(h, W_COLS[i], h === 'Last deployed')).join('')
+    + `<div style="${F.lblMd};color:var(--aira-text-primary);flex-grow:1">`
+    + `Actions</div></div>`;
+
+  const FILTERS = [['all','All apps'], ['mine','Created by me'],
+                   ['shared','Shared with me']];
+  const STATUSES = [['all','All'], ['active','Active'], ['archived','Archived']];
+  const labelOf = (opts, v) => opts.find(o => o[0] === v)[1];
+
+  /* The popover hangs off its own trigger, so neither has to know where on the
+     row it sits or how wide the label happens to be. */
+  const dropdown = (opts, key, sel) =>
+    `<span style="position:relative;display:inline-flex;flex:none">`
+    + `<button class="reset" style="${row(8,'border:1px solid var(--aira-border-default);'
+        + 'border-radius:var(--aira-radius-md);padding:8px 16px;' + F.body
+        + ';color:var(--aira-text-secondary);white-space:nowrap')}"`
+    + live(labelOf(opts, sel) + ' filter', key) + `>${esc(labelOf(opts, sel))}`
+    + I.chevDown(20) + `</button>`
+    + (S.menu === '__' + key
+      ? `<div class="menu" style="${col(0,'position:absolute;left:0;top:calc(100% + 4px);'
+          + 'min-width:100%;width:220px;background:var(--aira-bg-elevated);'
+          + 'border:1px solid var(--aira-border-default);border-radius:var(--aira-radius-md);'
+          + 'box-shadow:var(--aira-shadow-lg);padding:8px;z-index:3')}">`
+        + opts.map(([k, t]) => `<button class="reset mitem${k === sel ? ' sel' : ''}" `
+          + `style="${row(8,'padding:8px 12px;'
+            + 'border-radius:var(--aira-radius-xs);' + F.body + ';color:var(--aira-text-secondary);'
+            + 'white-space:nowrap')}"`
+          + live(t, key + ':' + k) + ` aria-selected="${k === sel}">`
+          + `<span style="flex:1;min-width:0">${esc(t)}</span>`
+          + (k === sel ? `<span style="flex:none;display:flex;color:var(--aira-text-link)">`
+              + I.tick(16) + `</span>` : '') + `</button>`).join('')
+        + `</div>`
+      : '')
+    + `</span>`;
+
+  /* Every filter can empty the list, so the list owes the reader a reason. */
+  const emptyState = () => {
+    const q = S.query.trim();
+    const [title, body] = q
+      ? ['No apps match your search',
+         'No app name contains \u201c' + q + '\u201d. Try a shorter word, or clear the search.']
+      : S.status === 'archived'
+        ? ['No archived apps', 'Apps you archive are listed here.']
+        : ['No apps in this view', 'Nothing matches this filter. Try All apps.'];
+    return `<div style="${col(4,'flex-grow:1;align-items:center;justify-content:center;'
+        + 'padding:64px 24px;text-align:center')}">`
+      + `<span style="${F.bodyM};color:var(--aira-text-primary)">${esc(title)}</span>`
+      + `<span style="${F.sm};color:var(--aira-text-secondary)">${esc(body)}</span></div>`;
+  };
+
+  /* The menu is built from what this reader can actually do: editing, history and
+     archiving are editor-only, so a viewer's menu holds one item. */
+  const menuApp = S.menu && S.menu !== '__filter' ? APP(S.menu) : null;
+  let rowMenu = '';
+  if (menuApp) {
+    const idx = visibleApps().indexOf(menuApp);
+    const isArchived = S.archived.indexOf(menuApp.id) >= 0;
+    const items = [['Open app', I.ext(20), 'open']];
+    if (canEdit(menuApp)) items.push(['Edit in new chat', I.chat(20), 'edit']);
+    /* Rename is about the app itself, so it sits with the name it changes rather
+       than after the history — the two owner-only destructive-ish items stay last. */
+    if (isOwner(menuApp)) items.push(['Rename app', I.penLine(20), 'rename']);
+    if (canEdit(menuApp)) items.push(['View version history', I.eye(20), 'history']);
+    if (isOwner(menuApp)) {
+      items.push(isArchived ? ['Restore app', I.restore(20), 'restore']
+                            : ['Archive app', I.archive(20), 'archive']);
+    }
+    rowMenu = `<div style="${col(0,`position:absolute;right:32px;top:${188 + idx * 76}px;`
+      + 'width:236px;background:var(--aira-bg-elevated);'
+      + 'border:1px solid var(--aira-border-default);border-radius:var(--aira-radius-md);'
+      + 'box-shadow:var(--aira-shadow-lg);padding:8px;z-index:3')}">`
+      + items.map(([t, g, act]) => `<button class="reset hov" style="${row(12,'padding:8px 12px;'
+          + 'border-radius:var(--aira-radius-xs);' + F.body + ';color:var(--aira-text-secondary)')}"`
+        + live(t, 'mi:' + act + ':' + menuApp.id) + `>${g}${esc(t)}</button>`).join('')
+      + `</div>`;
+  }
+
+  const rows = visibleApps();
+  return `<div style="${col(0,'flex-grow:1;min-height:0;padding:24px 32px 32px;'
+      + 'position:relative')}">`
+    + `<div style="${row(0,'padding-bottom:20px')}">`
+    + `<span style="${F.h3};color:var(--aira-text-primary)">Apps</span>`
+    + `<span style="flex-grow:1"></span>`
+    + `<span style="color:var(--aira-text-tertiary);display:flex">${I.close(20)}</span></div>`
+    + `<div style="${row(12,'padding-bottom:16px')}">`
+    + dropdown(FILTERS, 'filter', S.filter) + dropdown(STATUSES, 'status', S.status)
+    + `<label class="qwrap" style="${row(8,'border:1px solid var(--aira-border-default);'
+      + 'border-radius:var(--aira-radius-md);padding:8px 16px;flex-grow:1;max-width:300px;'
+      + 'color:var(--aira-text-tertiary)')}">${I.search(20)}`
+    + `<input class="qbox" id="qbox" type="text" placeholder="Search apps" `
+    + `value="${esc(S.query)}" style="${F.body};color:var(--aira-text-primary);`
+    + `border:0;background:none;padding:0;flex:1;min-width:0"`
+    + live('Search apps', 'search') + `></label>`
+    + `<span style="flex-grow:1"></span>`
+    + `<span style="${F.sm};color:var(--aira-text-secondary)">`
+    + `${plural(rows.length, 'app')}</span></div>`
+    + head + (rows.length ? rows.map(appRow).join('') : emptyState())
+    + rowMenu + `</div>`;
+}
+
+/* ── the history drawer ─────────────────────────────────────────────────── */
+const tlCell = (mark, top, bottom) => {
+  const seg = (h, on, cls) => `<span class="${cls}" style="width:1px;${h};`
+    + `background:var(--aira-border-subtle);`
+    + `${on ? '' : 'visibility:hidden'}"></span>`;
+  return `<span style="${col(0,`width:${COL.timeline}px;flex:none;align-self:stretch;`
+      + 'align-items:center')}">`
+    + seg(mark ? `flex:none;height:${ROW_PAD}px` : 'flex:1', top, 'tseg ttop') + mark
+    + seg('flex:1', bottom, 'tseg') + `</span>`;
+};
+/* A node sits on the row's first line, not halfway down a two-line row: the top
+   segment is fixed at ROW_PAD, and the node's own height matches the 24px line. */
+const nodeChevron = (open, fk, label) =>
+  `<button class="reset" style="${row(0,'justify-content:center')}flex:none;`
+  + `width:${COL.timeline}px;height:24px;`
+  + `border-radius:var(--aira-radius-pill);background:transparent;`
+  + `color:var(--aira-text-secondary)"`
+  + live(label, fk) + `>` + (open ? I.chevDown(20) : I.chevRight(20)) + `</button>`;
+const nodeDot = () =>
+  `<span style="width:7px;height:7px;flex:none;border-radius:var(--aira-radius-pill);`
+  + `background:var(--aira-border-strong)"></span>`;
+const listRow = (mark, content, extra, top, bottom) =>
+  `<div style="${row(GAP,'padding:0 12px')}">${tlCell(mark, top, bottom)}`
+  + `<div style="${row(GAP,`flex:1;min-width:0;${extra}`)}">${content}</div></div>`;
+/* 4px dot at the optical centre of the 13/20 line it marks. */
+const bullet = () =>
+  `<span style="width:4px;height:4px;flex:none;margin-top:8px;`
+  + `border-radius:var(--aira-radius-pill);background:var(--aira-text-tertiary)"></span>`;
+
+/* The disclosed level. No container of its own: the hover band around the whole
+   entry is what now groups a deploy with its changes, so a box inside it would be
+   a second grouping saying the same thing. */
+function changeBox(changes) {
+  return `<div style="${col(8,'flex:1;min-width:0')}">`
+    + changes.map(c =>
+      `<div style="${rowTop(8,F.sm + ';color:var(--aira-text-primary)')}">`
+      + bullet() + `<span style="text-wrap:pretty">${esc(c)}</span></div>`).join('')
+    + `</div>`;
+}
+function reasonBox(reason) {
+  return `<div style="${rowTop(8,'flex:1;min-width:0')}">`
+    + `<span style="flex:none;display:flex;margin-top:2px;color:var(--aira-text-danger)">`
+    + I.error(16) + `</span><span style="${F.sm};color:var(--aira-text-danger);`
+    + `text-wrap:pretty">${esc(reason)}</span></div>`;
+}
+
+function entry(r, appId, first, last) {
+  const a = APP(appId);
+  const open = S.open.indexOf(appId + ':' + r.v) >= 0;
+  /* No Live pill here: the drawer is a record of deploys, not a status board.
+     Failed still shows, because it says this row never became a version. */
+  const status = r.failed ? chipBlocked('Failed') : '';
+  const fk = 'ver:' + appId + ':' + r.v;
+  const label = (open ? 'Collapse ' : 'Expand ') + r.v;
+  /* Both the chevron and the two-line block carry the same action and the same
+     focus key, so whichever the reader aims at does the same thing. */
+  const node = r.failed ? nodeDot() : nodeChevron(open, fk, label);
+  /* The rule is its own element inside the band, not a border on it. As a border
+     it inherited the band's 8px radius and curled at both ends, and starting at the
+     band's edge it ran straight through the timeline rule. Inset past the timeline
+     column it begins where the version pill does, and the same inset on the right
+     keeps it centred under the text it separates. */
+  const RULE_INSET = 12 + COL.timeline + GAP;
+  const RULE = `<div style="height:1px;background:var(--aira-border-subtle);`
+    + `margin:0 ${RULE_INSET}px"></div>`;
+  const discloses = !r.failed && open;
+  const headRule = !last && !discloses && !r.failed ? RULE : '';
+
+  const lead = r.failed ? ''
+    : tag(r.v);
+
+  const inner = `<div style="${col(4,'flex:1;min-width:0')}">`
+    + `<div style="${row(8,'flex-wrap:wrap')}">${lead}`
+    + `<span style="${F.bodyM};color:var(--aira-text-primary)">${esc(r.when)}</span>`
+    + `${status}</div>`
+    + `<span style="${F.sm};color:var(--aira-text-secondary);overflow:hidden;`
+    + `text-overflow:ellipsis;white-space:nowrap">${esc(email(r.deployer))}</span></div>`;
+
+  const content = r.failed
+    ? inner
+    : `<button class="reset" style="${row(GAP,'flex:1;min-width:0')}"`
+      + live(label, fk) + `>${inner}</button>`;
+
+  let out = listRow(node, content, `padding:${ROW_PAD}px 0;`,
+    !first, !last || discloses || !!r.failed);
+
+  if (r.failed) {
+    out += listRow('', reasonBox(r.reason),
+      `padding:${CHANGE_PAD}px 0 ${ROW_PAD + CHANGE_PAD}px;`, true, !last);
+  } else if (open) {
+    out += listRow('', changeBox(r.changes),
+      `padding:${CHANGE_PAD}px 0 ${ROW_PAD + CHANGE_PAD}px;`, true, !last);
+  }
+  /* Wrapped, so the deploy line and its disclosed changes light up together. The
+     rule sits last inside the band, so the band's own bottom edge stays straight
+     and the rule simply disappears into it on hover. */
+  return `<div class="ventry">` + out + headRule + `</div>`;
+}
+
+function monthHead(key, n, open, first) {
+  /* The meta row above carries 12px of floor, so the first group takes 12px less
+     of ceiling — the gap at rest stays 32px either way. */
+  return `<button class="reset hov" style="${row(8,`margin:${first ? 12 : 24}px 8px 0;`
+      + 'padding:8px 12px;width:calc(100% - 16px);'
+      + 'border-radius:var(--aira-radius-md)')}"`
+    + live((open ? 'Fold ' : 'Unfold ') + key, 'mon:' + key) + `>`
+    + `<span style="${F.bodyM};color:var(--aira-text-secondary)">${esc(key)}</span>`
+    + `<span style="flex-grow:1"></span>`
+    + `<span style="${F.sm};color:var(--aira-text-secondary)">`
+    + `${plural(n, 'deploy')}</span>`
+    + `<span style="color:var(--aira-text-secondary);display:flex">`
+    + (open ? I.chevDown(20) : I.chevRight(20)) + `</span></button>`;
+}
+
+function drawer() {
+  const id = S.drawer, a = APP(id);
+  const rows = historyRows(id);
+  const groups = monthGroups(rows);
+
+  const body = groups.map((g, gi) => {
+    /* The count is deploys — a failed attempt is listed but takes no version,
+       so September can show three rows and still read "2 deploys". */
+    const n = g.rows.filter(r => !r.failed).length;
+    const folded = S.folded.indexOf(g.key) >= 0;
+    const head = monthHead(g.key, n, !folded, gi === 0);
+    if (folded) return head;
+    const end = g.rows.length - 1;
+    return head + g.rows.map((r, i) => entry(r, id, i === 0, i === end)).join('');
+  }).join('');
+
+  const header = `<div style="${col(2,'flex:none;padding:20px 26px 16px 20px;'
+      + 'border-bottom:1px solid var(--aira-border-default)')}">`
+    + `<div style="${row(12)}">`
+    + `<span style="${F.sm};color:var(--aira-text-secondary)">Version history</span>`
+    + `<span style="flex-grow:1"></span>`
+    + `<button class="reset hov" style="${row(0,'justify-content:center')}width:32px;height:32px;`
+    + `border-radius:var(--aira-radius-md);margin:-6px -6px -6px 0;`
+    + `color:var(--aira-text-tertiary)"`
+    + live('Close version history', 'dclose') + `>${I.close(20)}</button></div>`
+    + `<span style="${F.h4};color:var(--aira-text-primary)">${esc(a.name)}</span></div>`
+    /* The count describes the list, not the app, so it sits below the rule. */
+    + `<div style="${row(0,'flex:none;padding:16px 26px 12px 20px')}">`
+    /* "Total" distinguishes this from the per-month counts, which use the same noun. */
+    + `<span style="${F.sm};color:var(--aira-text-secondary)">`
+    + `Total ${plural(a.history.length, 'deploy')}</span></div>`;
+
+  return `<div id="vhdrawer" style="${col(0,`position:absolute;top:0;right:0;bottom:0;`
+      + `width:${DRAWER_W}px;`
+      + 'background:var(--aira-bg-elevated);'
+      + 'border-left:1px solid var(--aira-border-default);box-shadow:var(--aira-shadow-lg);z-index:4')}">`
+    + header
+    + `<div style="${col(0,'flex-grow:1;min-height:0')}">`
+    + `<div class="scroller" id="hscroll" style="${col(0,'width:100%;flex:1;min-height:0;'
+      + 'overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable')}">${body}</div></div></div>`;
+}
+
+/* ── the deployed app, and the toast that follows a deploy ──────────────── */
+function appCanvas() {
+  const a = APP(S.appOpen);
+  const kpi = [['Members in zone','48,210'],['Redemption rate','31.4%'],
+    ['Revenue per member','₹1,284']]
+    .map(([k, v]) => `<div style="${col(8,'flex-grow:1;min-width:0;'
+      + 'background:var(--aira-bg-elevated);border:1px solid var(--aira-border-default);'
+      + 'border-radius:var(--aira-radius-md);padding:20px')}">`
+      + `<span style="${F.sm};color:var(--aira-text-tertiary)">${esc(k)}</span>`
+      + `<span style="${F.h2};color:var(--aira-text-primary)">${esc(v)}</span></div>`).join('');
+  return `<div style="${col(24,'flex-grow:1;min-height:0;min-width:0;padding:32px;'
+      + 'background:var(--aira-bg-subtle);position:relative')}">`
+    + `<div style="${row(12)}">`
+    + `<button class="reset" style="color:var(--aira-text-secondary);display:flex"`
+    + live('Back to Apps', 'back') + `>${I.chevLeft(20)}</button>`
+    + `<span style="${F.h3};color:var(--aira-text-primary)">${esc(a.name)}</span>`
+    + tag(a.v) + pillLive() + `<span style="flex-grow:1"></span>`
+    + `<button class="reset"${live('Deploy', 'deploy')}>${btn('Deploy','primary')}</button></div>`
+    + `<div style="${row(20,'align-items:stretch')}">${kpi}</div>`
+    + `<div style="${col(16,'flex-grow:1;min-height:0;background:var(--aira-bg-elevated);'
+      + 'border:1px solid var(--aira-border-default);border-radius:var(--aira-radius-md);'
+      + 'padding:24px')}">`
+    + `<span style="${F.h4};color:var(--aira-text-primary)">Redemption rate by zone</span>`
+    + `<div style="${row(20,'align-items:flex-end;flex-grow:1;min-height:0')}">`
+    + [62,88,44,71,96,53,80].map(h => `<div style="${col(0,'flex-grow:1;align-items:center;'
+        + 'justify-content:flex-end;height:100%')}">`
+        + `<div style="width:100%;height:${h}%;background:var(--aira-bg-brand);`
+        + `border-radius:var(--aira-radius-xs) var(--aira-radius-xs) 0 0"></div></div>`).join('')
+    + `</div></div></div>`;
+}
+
+/* ── AiraModal ──────────────────────────────────────────────────────────────
+   Anatomy per the spec and the two published examples: the destructive variant
+   is icon-led — a warning mark on a tinted circular ground — with a danger
+   primary and role="alertdialog"; the plain confirmation carries no icon at all.
+   Both put the body at the card's left edge rather than indenting it under the
+   headline, rule off the footer, and order it Cancel then primary. Esc dismisses. */
+const MODALS = {
+  archive: {
+    role:'alertdialog', danger:true, mark:I.warn,
+    title: a => 'Archive ' + a.name + '?',
+    /* Two sentences, two lines. Left to wrap, the second one trails a widow. */
+    body: ['Are you sure you want to archive this app?', 'You can restore it later.'],
+    confirm:'Archive',
+  },
+  restore: {
+    role:'dialog', danger:false, mark:null,
+    title: a => 'Restore ' + a.name + '?',
+    body: ['Are you sure you want to restore this app?',
+           'It will be shown in the main listing.'],
+    confirm:'Restore',
+  },
+};
+function modalEl() {
+  if (!S.modal) return '';
+  const m = MODALS[S.modal.kind], a = APP(S.modal.id);
+  /* Cancel is a tertiary text button, not an outlined one: the spec allows a
+     single primary per decision surface, and a bordered Cancel reads as a peer. */
+  const btn2 = (label, primary, fk) =>
+    `<button class="reset hov" style="${row(0,'justify-content:center')}height:36px;`
+    + `padding:0 20px;border-radius:var(--aira-radius-md);${F.lblMd};`
+    + (primary
+        ? `color:var(--aira-text-inverse);background:var(--aira-bg-`
+          + (m.danger ? 'danger' : 'brand') + `)`
+        : 'color:var(--aira-text-secondary)') + `"`
+    + live(label, fk) + `>${esc(label)}</button>`;
+  const mark = m.mark
+    ? `<span style="${row(0,'justify-content:center')}width:40px;height:40px;flex:none;`
+      + `border-radius:var(--aira-radius-circle);`
+      + `background:var(--aira-bg-warning-subtle);color:var(--aira-text-warning)">`
+      + m.mark(20) + `</span>`
+    : '';
+  return `<div style="${row(0,'position:absolute;inset:0;justify-content:center;'
+      + 'align-items:center;background:var(--aira-bg-scrim);z-index:7')}">`
+    + `<div role="${m.role}" aria-modal="true" aria-labelledby="mtitle" `
+    + `style="${col(0,'width:440px;background:var(--aira-bg-elevated);'
+      + 'border-radius:var(--aira-radius-md);box-shadow:var(--aira-shadow-lg)')}">`
+    + `<div style="${col(12,'padding:24px')}">`
+    + `<div style="${row(12)}">${mark}`
+    + `<span id="mtitle" style="${F.h3};color:var(--aira-text-primary)">`
+    + `${esc(m.title(a))}</span></div>`
+    + `<span style="${col(0,F.bodyLg + ';color:var(--aira-text-secondary)')}">`
+    + m.body.map(l => `<span>${esc(l)}</span>`).join('') + `</span>`
+    + `</div>`
+    + `<div style="${row(8,'padding:16px 24px;justify-content:flex-end;'
+      + 'border-top:1px solid var(--aira-border-subtle)')}">`
+    + btn2('Cancel', false, 'mcancel')
+    + btn2(m.confirm, true, 'mconfirm') + `</div></div></div>`;
+}
+
+/* ── AiraToast ──────────────────────────────────────────────────────────────
+   One line, past tense, no full stop — the voice rules are explicit about this,
+   and a toast with a headline plus a body sentence is a Banner wearing a toast's
+   position. The tone is carried by a mark as well as by colour, because colour is
+   never the only signal. Auto-dismisses in about four seconds; a toast is never
+   the only place a result is reported, so nothing is lost when it goes. */
+const TONES = {
+  success: { ink:'var(--aira-text-success)', mark:s => I.check(s) },
+  info:    { ink:'var(--aira-text-link)',    mark:s => I.info(s) },
+};
+function toastEl() {
+  if (!S.toast) return '';
+  const t = S.toast, tone = TONES[t.tone || 'success'];
+  return `<div role="status" aria-live="polite" style="${row(12,'position:absolute;'
+      + 'left:32px;bottom:32px;max-width:420px;background:var(--aira-bg-elevated);'
+      + 'border:1px solid var(--aira-border-default);'
+      + 'border-radius:var(--aira-radius-md);box-shadow:var(--aira-shadow-lg);'
+      + 'padding:12px 16px;z-index:6')}">`
+    + `<span style="flex:none;display:flex;color:${tone.ink}">${tone.mark(20)}</span>`
+    + `<span style="${F.bodyM};color:var(--aira-text-primary);min-width:0;flex:1">`
+    + `${esc(t.title)}</span>`
+    + (t.action
+        ? `<button class="reset hov" style="${F.bodyM};color:var(--aira-text-link);`
+          + `border-radius:var(--aira-radius-xs);padding:2px 6px;margin:-2px -2px -2px 4px"`
+          + live(t.action, 'toastact') + `>${esc(t.action)}</button>`
+        : '')
+    + `<button class="reset hov" style="${row(0,'justify-content:center')}width:24px;`
+    + `height:24px;flex:none;border-radius:var(--aira-radius-xs);`
+    + `color:var(--aira-text-tertiary)"`
+    + live('Dismiss', 'toastclose') + `>${I.close(20)}</button></div>`;
+}
+
+/* The timer is owned by the render, not by whoever raised the toast, so every
+   toast gets the same life whichever path set it. A re-render while the same
+   toast is up must not restart it, or a toast beside a busy surface never dies. */
+let toastTimer = null, toastShown = null;
+function armToast() {
+  if (!S.toast) { clearTimeout(toastTimer); toastTimer = null; toastShown = null; return; }
+  if (S.toast === toastShown) return;
+  clearTimeout(toastTimer);
+  toastShown = S.toast;
+  toastTimer = setTimeout(() => {
+    if (S.toast !== toastShown) return;
+    S.toast = null; toastShown = null; commit();
+  }, 4000);
+}
+
+/* ═══ render — one entry point, every mutation ends here ═════════════════ */
+const appEl = document.getElementById('app');
+
+function render() {
+  captureScroll();
+  captureCaret();
+  const panel = S.screen === 'apps'
+    ? appsPanel() + (S.drawer ? drawer() : '')
+    : appCanvas();
+  appEl.innerHTML =
+    `<div style="${row(0,'align-items:stretch;width:100%;height:100%;'
+      + 'background:var(--aira-bg-canvas);overflow:hidden;position:relative')}">`
+    + railChrome()
+    + `<div style="${col(0,'flex-grow:1;min-width:0')}">` + topBar()
+    + `<div style="${col(0,'flex-grow:1;min-width:0;min-height:0;position:relative;'
+      + 'background:var(--aira-bg-elevated)')}">` + panel + `</div></div>`
+    + modalEl() + toastEl() + `</div>`;
+  wireApp();
+  restoreScroll();   // scroll first: focus can scroll things into view
+  restoreFocus();
+  restoreCaret();
+  armToast();
+}
+
+/* The whole panel is re-rendered on every keystroke, so the caret has to be put
+   back exactly where it was — restoring it to the end would break mid-word edits. */
+let caret = null;
+function captureCaret() {
+  const el = document.getElementById('rbox') || document.getElementById('qbox');
+  caret = (el && document.activeElement === el) ? [el.selectionStart, el.selectionEnd] : null;
+}
+/* Set when the name field is first opened, so the whole name is selected once and
+   then left alone. Inferring "just appeared" from an empty caret is not safe — a
+   caret of [0,0] is a real position and reads as one. */
+let renameFresh = false;
+function restoreCaret() {
+  const el = document.getElementById('rbox') || document.getElementById('qbox');
+  if (!el) return;
+  try {
+    if (renameFresh && el.id === 'rbox') { el.select(); renameFresh = false; }
+    else if (caret) { el.setSelectionRange(caret[0], caret[1]); }
+  } catch (e) {}
+}
+
+/* Scroll is owned by state and never read back off the DOM at render time. */
+let scrollCaptured = false;
+function captureScroll() {
+  const w = document.getElementById('hscroll');
+  if (w) { S.drawerScroll = w.scrollTop; scrollCaptured = true; }
+}
+function restoreScroll() {
+  const w = document.getElementById('hscroll');
+  if (!w) return;
+  /* Clamp, or folding the last month parks the list in blank space. */
+  S.drawerScroll = Math.max(0, Math.min(S.drawerScroll, w.scrollHeight - w.clientHeight));
+  w.scrollTop = S.drawerScroll;
+  w.addEventListener('scroll', () => { S.drawerScroll = w.scrollTop; }, { passive:true });
+}
+/* S.focus is the truth; the DOM follows it. Focus never lands on <body>. */
+function restoreFocus() {
+  if (!S.focus) return;
+  const el = appEl.querySelector('[data-fk="' + S.focus.replace(/"/g,'') + '"]');
+  if (el) { el.focus({ preventScroll:true }); scrollIntoDrawer(el); return; }
+  const fb = appEl.querySelector('[data-live]');
+  if (fb) fb.focus({ preventScroll:true });
+  S.focus = fb ? fb.getAttribute('data-fk') : null;
+}
+function scrollIntoDrawer(el) {
+  const w = document.getElementById('hscroll');
+  if (!w || !w.contains(el)) return;
+  const er = el.getBoundingClientRect(), wr = w.getBoundingClientRect();
+  if (er.top < wr.top) w.scrollTop -= (wr.top - er.top) + 12;
+  else if (er.bottom > wr.bottom) w.scrollTop += (er.bottom - wr.bottom) + 12;
+  S.drawerScroll = w.scrollTop;
+}
+
+/* ═══ interactions — each does the real thing, then moves the step ═══════ */
+function toggle(list, v) {
+  const i = list.indexOf(v);
+  if (i >= 0) list.splice(i, 1); else list.push(v);
+}
+
+function wireApp() {
+  appEl.querySelectorAll('[data-fk]').forEach(el => {
+    const k = el.getAttribute('data-fk');
+    if (el.tagName === 'INPUT') {
+      el.oninput = () => {
+        if (k === 'rename') { S.rename = el.value; S.focus = k; commit(); return; }
+        S.query = el.value; S.focus = k; S.menu = null;
+        syncDrawer(); commit(); };
+      el.onclick = e => { e.stopPropagation(); S.focus = k; if (S.menu) { S.menu = null; commit(); } };
+      return;
+    }
+    if (!el.hasAttribute('data-live')) {          // inert, and says so
+      el.onclick = () => { S.inert = el.textContent.trim(); S.focus = k; render();
+        renderInspector(); };
+      return;
+    }
+    el.onclick = e => { e.stopPropagation(); act(k); };
+    if (el.tagName !== 'BUTTON') {
+      el.onkeydown = e => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault(); e.stopPropagation(); act(k);
+      };
+    }
+  });
+}
+
+/* The drawer belongs to a row. When the listing moves out from under it — an
+   access filter, a status switch, a search — the row it describes is gone from
+   view, and a drawer reading out the history of a row you can no longer see is
+   the panel lying about where you are. So the drawer goes with it. Focus is
+   deliberately left alone: it belongs to the control the reader just used. */
+function syncDrawer() {
+  if (!S.drawer) return;
+  if (visibleApps().some(a => a.id === S.drawer)) return;
+  S.drawer = null; S.open = []; S.folded = []; S.drawerScroll = 0; S.trigger = null;
+}
+
+function act(k) {
+  S.focus = k;
+  const p = k.split(':');
+  switch (p[0]) {
+    case 'more':
+      S.menu = S.menu === p[1] ? null : p[1];
+      commit(S.menu ? (canEdit(APP(p[1])) ? 'A2' : 'A3') : 'A1');
+      return;
+    case 'filter':
+      if (p.length === 1) { S.menu = S.menu === '__filter' ? null : '__filter'; commit(); return; }
+      S.filter = p[1]; S.menu = null; syncDrawer();
+      /* Only two of the three buckets have a step of their own; the rest stay put. */
+      commit(p[1] === 'shared' ? 'E1' : p[1] === 'all' ? 'A1' : undefined);
+      return;
+    case 'status':
+      if (p.length === 1) { S.menu = S.menu === '__status' ? null : '__status'; commit(); return; }
+      S.status = p[1]; S.menu = null; syncDrawer(); commit();
+      return;
+    case 'search':
+      /* Clicking into the box only puts the caret there; the typing does the work. */
+      S.menu = null; commit();
+      return;
+    case 'name':
+      S.menu = null; openApp(p[1]); commit('D1'); return;
+    case 'mi': {
+      const act2 = p[1], id = p[2];
+      S.menu = null;
+      if (act2 === 'open') { openApp(id); commit('D1'); return; }
+      if (act2 === 'edit') { S.inert = 'Edit in new chat'; commit(); return; }
+      if (act2 === 'history') { openDrawer(id); S.trigger = 'more:' + id; commit('B1'); return; }
+      /* Neither is done on the click that opens the menu item — both are a
+         decision, and a decision gets a modal. */
+      if (act2 === 'rename') {
+        S.renaming = id; S.rename = APP(id).name; S.focus = 'rename';
+        renameFresh = true;      // the first keystroke replaces the whole name
+        commit(); return;
+      }
+      if (act2 === 'archive' || act2 === 'restore') {
+        S.modal = { kind:act2, id };
+        S.trigger = 'more:' + id;
+        S.focus = 'mconfirm';
+        commit(act2 === 'archive' ? 'E2' : 'E4'); return;
+      }
+      return;
+    }
+    case 'mcancel': {
+      const back = S.trigger;
+      S.modal = null; S.trigger = null; S.focus = back;
+      commit(); return;
+    }
+    case 'rename': return;         // the field itself; typing is handled in wireApp
+    case 'rsave':   saveRename(); return;
+    case 'rcancel': cancelRename(); return;
+    case 'mconfirm': {
+      const m = S.modal; if (!m) return;
+      const id = m.id;
+      S.modal = null; S.trigger = null;
+      if (m.kind === 'archive') {
+        /* Work out the successor BEFORE removing, so focus lands on the row that
+           takes this one's place rather than on whatever the DOM lists first. */
+        const list = visibleApps(), at = list.findIndex(x => x.id === id);
+        const next = list[at + 1] || list[at - 1];
+        S.archived.push(id);
+        if (S.drawer === id) { S.drawer = null; S.trigger = null; }
+        S.focus = next ? 'more:' + next.id : 'filter';
+        S.toast = { title:APP(id).name + ' archived', tone:'success' };
+        commit('E3'); return;
+      }
+      S.archived.splice(S.archived.indexOf(id), 1);
+      S.focus = 'more:' + id;
+      S.toast = { title:APP(id).name + ' restored', tone:'success' };
+      commit('E5'); return;
+    }
+    case 'ver': {
+      const key = p[1] + ':' + p[2];
+      toggle(S.open, key);
+      const n = S.open.length;
+      commit(n === 0 ? 'B1' : n === 1 ? 'B2' : 'B3');
+      return;
+    }
+    case 'mon': {
+      toggle(S.folded, k.slice(4));
+      commit(S.folded.length ? 'B4' : 'B1');
+      return;
+    }
+    case 'dclose': {
+      const back = S.trigger;
+      S.drawer = null; S.open = []; S.folded = []; S.trigger = null;
+      S.focus = back || S.focus;   // focus returns to the trigger, not to the DOM's first control
+      commit('A1'); return;
+    }
+    case 'deploy': {
+      const a = APP(S.appOpen);
+      const next = 'v' + (parseInt(a.v.slice(1), 10) + 1);
+      a.history.unshift({ v:next, month:'September 2026', when:'Sep 11, 2026, 12:31 PM IST',
+        deployer:'ann.francis',
+        changes:['Changed filter — Tier default set to Platinum',
+                 'Added metric — Points expiring in 30 days'] });
+      a.v = next; a.date = 'Sep 11, 2026'; a.time = '12:31 PM IST'; a.upd = 'ann.francis';
+      S.toast = { title:a.name + ' deployed as ' + next, tone:'success',
+        action:'View history' };
+      commit('D2'); return;
+    }
+    case 'toastact': {
+      const id = S.appOpen;
+      S.toast = null; S.screen = 'apps'; S.appOpen = null;
+      openDrawer(id); commit('B1'); return;
+    }
+    case 'toastclose': S.toast = null; commit(); return;
+    case 'back':
+      S.screen = 'apps'; S.appOpen = null; S.toast = null; commit('A1'); return;
+  }
+}
+/* An empty name is not a rename, so it leaves the name alone rather than
+   saving a blank row. */
+function saveRename() {
+  const id = S.renaming; if (!id) return;
+  const was = APP(id).name, name = S.rename.trim();
+  S.renaming = null; S.rename = ''; S.focus = 'more:' + id;
+  if (name && name !== was) {
+    APP(id).name = name;
+    S.toast = { title:was + ' renamed to ' + name, tone:'success' };
+  }
+  commit();
+}
+function cancelRename() {
+  const id = S.renaming; if (!id) return;
+  S.renaming = null; S.rename = ''; S.focus = 'more:' + id;
+  commit();
+}
+
+function openDrawer(id) {
+  S.drawer = id; S.open = []; S.folded = []; S.drawerScroll = 0;
+  S.trigger = 'more:' + id;
+  S.screen = 'apps'; S.menu = null;
+}
+function openApp(id) {
+  S.screen = 'app'; S.appOpen = id; S.drawer = null; S.menu = null; S.toast = null;
+  /* A screen away, not a filtered-out row — so the drawer's whole state goes. */
+  S.open = []; S.folded = []; S.drawerScroll = 0; S.trigger = null;
+}
+/* A real interaction has already changed the state, so the step moves without
+   re-applying — re-applying would undo the reviewer's work. */
+function commit(stepId) {
+  if (stepId && stepId !== current) { history.push(current); current = stepId; }
+  paintChrome(); render();
+}
+
+/* Clicking the surface closes any open menu, the way a popover behaves. */
+appEl.addEventListener('click', e => {
+  if (S.modal) return;          // the modal is blocking; only its own buttons act
+  /* Clicking away commits the open name field — an inline edit that silently
+     discards what you typed is worse than one that keeps it. */
+  if (S.renaming && !(e.target.id === 'rbox')) { saveRename(); return; }
+  /* A click on the listing behind the drawer dismisses it, the way any overlay
+     behaves. Controls inside the drawer stop their own clicks, so only genuinely
+     outside clicks reach this. */
+  if (S.drawer && !e.target.closest('#vhdrawer')) { S.menu = null; act('dclose'); return; }
+  if (S.menu) { S.menu = null; commit(); }
+});
+
+/* ═══ the step graph ═════════════════════════════════════════════════════ */
+function reset() {
+  S.screen = 'apps'; S.filter = 'all'; S.status = 'active'; S.query = '';
+  S.menu = null; S.drawer = null;
+  S.open = []; S.folded = []; S.archived = [];
+  S.failedAttempt = false; S.modal = null; S.toast = null; S.appOpen = null;
+  S.renaming = null; S.rename = '';
+  S.drawerScroll = 0; S.focus = null; S.inert = null; S.trigger = null;
+  /* Deploy mutates whichever app was open, so restore every one of them. */
+  APPS.forEach(a => { a.v = a._0.v; a.name = a._0.name; a.date = a._0.date;
+    a.time = a._0.time; a.upd = a._0.upd; a.history = a._0.history.slice(); });
+}
+
+const SECTIONS = [
+  { key:'A', title:'A · The listing', desc:'The only entry point. What a row offers depends on the access the reader has.' },
+  { key:'B', title:'B · The history drawer', desc:'Overlays the listing, the way every other aiRA drawer does. Record only — nothing here restores.' },
+  { key:'C', title:'C · Edge states', desc:'The two histories that are not a long list: a brand-new app, and a deploy that failed.' },
+  { key:'D', title:'D · Deploying', desc:'Where a version comes from. Deploy is still one click, and the history gains a row.' },
+  { key:'E', title:'E · Filter, archive, restore', desc:'The listing’s own controls, and the two decisions that need a modal before they happen.' },
+];
+
+const STEPS = [
+  { id:'A1', sec:'A', name:'Apps listing', apply(){ reset(); },
+    targets:[{label:'Open a row’s actions — campaign_zones', to:'A2'},
+             {label:'Open a row’s actions — loyalty_health', to:'A3'},
+             {label:'Filter to Shared with me', to:'E1'}],
+    note:'One flat table. Access is a filter, not a section. An app shared with you carries the <b>users</b> mark, and that is the only marker a row gets — never a pill, because a second pill would compete with the version tag beside it. Only the Last deployed column sorts, so the other three headers are labels rather than dead controls.' },
+  { id:'A2', sec:'A', name:'Row menu — editor', apply(){ reset(); S.menu = 'campaign_zones'; },
+    targets:[{label:'Click View version history', to:'B1'},
+             {label:'Click Open app', to:'D1'},
+             {label:'Click Archive app', to:'E2'}],
+    note:'Four actions for someone who can edit. Nothing on the row itself links into the history — this menu item is the only way in, which is why the version tag can stay visible to everyone.' },
+  { id:'A3', sec:'A', name:'Row menu — view only', apply(){ reset(); S.menu = 'loyalty_health'; },
+    targets:[{label:'Click Open app', to:'D1'},
+             {label:'Back to the plain listing', to:'A1'}],
+    note:'Org-wide access grants <b>view only</b> by default, so most people who can open an app cannot edit it, archive it, or see its history. One item. Hidden rather than disabled: a control that exists and refuses forces a permission model on someone who only wanted to read a dashboard.' },
+
+  { id:'B1', sec:'B', name:'Drawer open',
+    apply(){ reset(); openDrawer('campaign_zones'); },
+    targets:[{label:'Expand v21', to:'B2'},
+             {label:'Fold August away', to:'B4'},
+             {label:'Close the drawer', to:'A1'}],
+    note:'The drawer overlays the listing — a push layout was built, compared and rejected, because one surface behaving differently reads as a different product. The row it belongs to is selected, so the part still showing on the left says which app is being read. <b>The list really scrolls</b>: 21 deploys across six months.' },
+  { id:'B2', sec:'B', name:'One deploy expanded',
+    apply(){ reset(); openDrawer('campaign_zones'); S.open = ['campaign_zones:v21']; },
+    targets:[{label:'Expand v20 as well', to:'B3'},
+             {label:'Collapse v21', to:'B1'}],
+    note:'One line per change, the verb folded into the sentence rather than sitting in a pill. No time and no actor per line: only the deploy is a registered event, and everything in it is the work of the one person who deployed it.' },
+  { id:'B3', sec:'B', name:'Two deploys expanded',
+    apply(){ reset(); openDrawer('campaign_zones');
+      S.open = ['campaign_zones:v21','campaign_zones:v20']; },
+    targets:[{label:'Collapse v20', to:'B2'},
+             {label:'Expand v19 too', to:'B3'}],
+    note:'More than one can be open at once — “what was different between v20 and v21” is a real question, so the drawer never limits you to one. With the boxes gone, hover is what keeps the pairs apart: <b>point at any deploy</b> and it lights up together with its own changes, so you never have to work out row by row where one set ends.' },
+  { id:'B4', sec:'B', name:'Months folded',
+    apply(){ reset(); openDrawer('campaign_zones');
+      S.folded = ['August 2026','July 2026','June 2026','May 2026','April 2026']; },
+    targets:[{label:'Unfold August', to:'B1'},
+             {label:'Expand v21', to:'B2'}],
+    note:'Each month header carries its own count, so a folded month still says how much is behind it. This is the cheap answer to reading by period — a date picker would have cost far more. Everything is open by default; folding is the reader’s move.' },
+
+  { id:'C1', sec:'C', name:'A v1 app',
+    apply(){ reset(); openDrawer('trendly_q3'); },
+    targets:[{label:'Expand v1', to:'C1'},
+             {label:'Close the drawer', to:'A1'}],
+    note:'Short rather than empty. A first deploy still has changes — it is how the app came to exist. Two things read oddly here and are worth your call: the total and the month count say the same number, and a sort control on a one-item list has nothing to do.' },
+  { id:'C2', sec:'C', name:'A failed deploy',
+    apply(){ reset(); openDrawer('campaign_zones'); S.failedAttempt = true; },
+    targets:[{label:'Expand v21 above it', to:'C2'},
+             {label:'Close the drawer', to:'A1'}],
+    note:'Listed, with a plain reason and <b>no version number</b> — hiding failures would make the numbering appear to skip. The reason sits in danger ink beside the error mark, with no surface of its own, because the system licenses red for text and small glyphs and there is no danger-subtle background token. September shows three rows and still reads “2 deploys”: a failed attempt is not a deploy.' },
+
+  { id:'D1', sec:'D', name:'The app open',
+    apply(){ reset(); openApp('campaign_zones'); },
+    targets:[{label:'Click Deploy', to:'D2'},
+             {label:'Back to Apps', to:'A1'}],
+    note:'Where the version numbers come from. aiRA builds the app inside a chat to the client’s own spec, so <b>none of this layout is ours</b> — which is why the history could never hang off a toolbar in here, and why the listing is the only entry point.' },
+  { id:'D2', sec:'D', name:'Deployed',
+    apply(){ reset(); openApp('campaign_zones'); act('deploy'); },
+    targets:[{label:'Click View history — v22 is at the top', to:'B1'},
+             {label:'Dismiss the toast', to:'D1'}],
+    note:'Still one click, still no note step. <b>The deploy is real here</b>: the history gains v22 with its changes, and the listing’s Updated by and Last deployed both move. <b>The toast auto-dismisses in four seconds</b>, the way the system specifies — one line, past tense, no full stop. Re-enter the step from the rail to see it again.' },
+
+  { id:'E1', sec:'E', name:'Shared with me',
+    apply(){ reset(); S.filter = 'shared'; },
+    targets:[{label:'Open version history on trendly-sales', to:'B1'},
+             {label:'Back to all apps', to:'A1'}],
+    note:'Access is a filter rather than sections or a separate page. These four are shared with you rather than created by you, and only the ones shared as an editor offer history — a viewer’s row menu holds a single item.' },
+  { id:'E2', sec:'E', name:'Confirm archive',
+    apply(){ reset(); S.menu = null; S.modal = { kind:'archive', id:'campaign_zones' };
+      S.trigger = 'more:campaign_zones'; S.focus = 'mconfirm'; },
+    targets:[{label:'Archive app', to:'E3'},
+             {label:'Cancel', to:'A1'}],
+    note:'The destructive variant: a warning mark on a tinted ground, the body at the card’s left edge rather than indented under the headline, a rule above the footer, Cancel as a text button so only one action reads as primary, and a danger fill on the confirm. Esc dismisses. The row menu is the only way in, which is why archiving is editor-only.' },
+  { id:'E3', sec:'E', name:'Archived',
+    apply(){ reset(); S.archived = ['campaign_zones'];
+      S.toast = { title:'campaign_zones.app archived', tone:'success' }; },
+    targets:[{label:'Switch Status to Archived', to:'E4'},
+             {label:'Back to the full listing', to:'A1'}],
+    note:'Archiving is editor-only and it removes the row from Active — the count drops with it. <b>Status is live</b>: switch it to Archived and the row comes back on its own, or to All to see both at once.' },
+  { id:'E4', sec:'E', name:'Confirm restore',
+    apply(){ reset(); S.archived = ['campaign_zones']; S.status = 'archived';
+      S.modal = { kind:'restore', id:'campaign_zones' };
+      S.trigger = 'more:campaign_zones'; S.focus = 'mconfirm'; },
+    targets:[{label:'Restore app', to:'E5'},
+             {label:'Cancel', to:'E3'}],
+    note:'Restoring is not destructive, so it takes the plain confirmation — <b>no mark at all</b>, an indigo primary, and a body that says where the app reappears. Same component, different variant; a second pattern for the reverse of an action would be the wrong answer.' },
+  { id:'E5', sec:'E', name:'Restored',
+    apply(){ reset(); S.status = 'archived';
+      S.toast = { title:'campaign_zones.app restored', tone:'success' }; },
+    targets:[{label:'Switch Status to Active', to:'A1'},
+             {label:'Back to the full listing', to:'A1'}],
+    note:'The row has left Archived, which is why this view is empty — it is in Active apps now. The empty state says so rather than leaving a blank band, and the toast confirms the move without needing the reader to go looking for the row.' },
+];
+const FIRST_STEP = 'A1';
+const stepById = id => STEPS.find(s => s.id === id);
+
+/* ═══ shell wiring ══════════════════════════════════════════════════════ */
+const stage = document.getElementById('stage');
+const holder = document.getElementById('holder');
+const frame = document.getElementById('frame');
+const STAGE_W = 1440, STAGE_H = 900;
+
+let current = FIRST_STEP, history = [];
+
+
+function paintChrome() {
+  const s = stepById(current);
+  /* The hash is the only chrome left: it still deep-links to any state. */
+  if (location.hash.replace('#','').toUpperCase() !== s.id) {
+    history_replace(s.id);
+  }
+}
+function history_replace(id) {
+  try { window.history.replaceState(null, '', '#' + id); } catch (e) { location.hash = id; }
+}
+
+
+
+
+
+function goStep(id) {
+  const s = stepById(id);
+  if (!s) return;
+  if (current !== id) history.push(current);
+  current = id;
+  S.inert = null;
+  s.apply();
+  S.focus = null;          // a step jump leaves focus on the rail, not in the app
+  paintChrome(); render();
+}
+
+/* Nothing to fit — the frame is the viewport. Kept because the resize listener
+   and the start-up path still call it. */
+function fitStage() {}
+window.addEventListener('resize', fitStage);
+
+function stepFromHash() {
+  const h = (location.hash || '').replace('#','').toUpperCase();
+  return stepById(h) ? h : FIRST_STEP;
+}
+window.addEventListener('hashchange', () => {
+  const id = stepFromHash();
+  if (id !== current) goStep(id);
+});
+document.addEventListener('keydown', e => {
+  if (document.activeElement && /INPUT|TEXTAREA/.test(document.activeElement.tagName)) {
+    if (S.renaming) {
+      if (e.key === 'Enter')  { e.preventDefault(); saveRename(); return; }
+      if (e.key === 'Escape') { e.preventDefault(); cancelRename(); return; }
+    }
+    if (e.key === 'Escape' && S.modal) { e.preventDefault(); act('mcancel'); }
+    return;
+  }
+  if (e.key === 'Escape') {
+    if (S.modal) { act('mcancel'); return; }
+    if (S.menu) { S.menu = null; commit(); return; }
+    if (S.toast) { S.toast = null; commit(); return; }
+    if (S.drawer) { act('dclose'); return; }
+    return;
+  }
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+  const i = STEPS.findIndex(s => s.id === current);
+  const n = e.key === 'ArrowDown' ? i + 1 : i - 1;
+  if (n >= 0 && n < STEPS.length) { e.preventDefault(); goStep(STEPS[n].id); }
+});
+
+try {
+  current = stepFromHash();
+  goStep(current);
+  fitStage();
+} catch (err) {
+  /* A blank stage tells a reviewer nothing. Say what happened, in the stage. */
+  document.getElementById('stage').innerHTML =
+    '<div style="max-width:520px;padding:24px;border:1px solid var(--wt-border);'
+    + 'border-radius:12px;background:#fff;font-size:13px;line-height:20px;color:#364152">'
+    + '<b style="display:block;margin-bottom:8px;font-size:16px;color:#111827">'
+    + 'This walkthrough could not start</b>'
+    + 'It needs to run as a real page. If you opened the file in a preview or snapshot '
+    + 'viewer, scripts are disabled there — open it in a browser instead.'
+    + '<div style="margin-top:12px;font:500 12px/18px ui-monospace,Menlo,monospace;'
+    + 'color:#B11E1E">' + String(err && err.message ? err.message : err) + '</div></div>';
+}
+</script>
+</body>
+</html>
