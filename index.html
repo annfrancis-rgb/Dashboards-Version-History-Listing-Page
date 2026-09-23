@@ -546,6 +546,10 @@ function appsPanel() {
 
   const appRow = a => {
     const on = S.drawer === a.id;
+    /* A menu floats away from the row it belongs to, so the row holds the hover
+       tint while its menu is open — otherwise nothing on screen says which app
+       these four actions are about. */
+    const menuOn = S.menu === a.id;
     /* The row is the target, not the name inside it — a table row that opens
        something should be clickable across its whole width. The actions button
        stops the click from reaching it. */
@@ -578,12 +582,13 @@ function appsPanel() {
       : `<div style="${row(8,`width:${W_COLS[0]};flex:none`)}">`
         + `<span style="${F.bodyM};color:var(--aira-text-primary)">${esc(a.name)}</span>`
         + tag(a.v) + access(a) + `</div>`;
-    return `<div class="${on || editing ? '' : 'hov'}"`
+    return `<div class="${on || editing || menuOn ? '' : 'hov'}"`
       + (editing ? '' : ' role="button" tabindex="0"')
       + ` style="${row(0,`padding:14px ${ROW_INSET}px;`
       + (editing ? '' : 'cursor:pointer;')
       + 'border-bottom:1px solid var(--aira-border-subtle);'
-      + (on ? 'background:var(--aira-bg-subtle);' : ''))}"`
+      + (on ? 'background:var(--aira-bg-subtle);'
+           : menuOn ? 'background:var(--aira-bg-hover);' : ''))}"`
       + (editing ? '' : live('Open ' + a.name, 'name:' + a.id)) + `>`
       + nameCell
       + `<div style="width:${W_COLS[1]};flex:none">${person(email(a.by))}</div>`
