@@ -567,7 +567,8 @@ function appsPanel() {
     const nameCell = editing
       /* The cell keeps a gutter so the field and its 4px focus ring stay inside
          the column instead of running into Created by. */
-      ? `<div style="${row(8,`width:${W_COLS[0]};flex:none;padding-right:16px`)}">`
+      ? `<div class="renamecell" style="${row(8,`width:${W_COLS[0]};flex:none;`
+          + 'padding-right:16px')}">`
         + `<span class="qwrap" style="${row(0,'flex:1;min-width:0;height:36px;'
             + 'border:1px solid var(--aira-border-default);'
             + 'border-radius:var(--aira-radius-md);padding:0 12px;'
@@ -683,7 +684,8 @@ function appsPanel() {
       items.push(isArchived ? ['Restore app', I.restore(20), 'restore']
                             : ['Archive app', I.archive(20), 'archive']);
     }
-    rowMenu = `<div style="${col(0,`position:absolute;right:32px;top:${188 + idx * 76}px;`
+    rowMenu = `<div class="menu" style="${col(0,`position:absolute;right:32px;`
+      + `top:${188 + idx * 76}px;`
       + 'width:236px;background:var(--aira-bg-elevated);'
       + 'border:1px solid var(--aira-border-default);border-radius:var(--aira-radius-md);'
       + 'box-shadow:var(--aira-shadow-lg);padding:8px;z-index:3')}">`
@@ -1091,6 +1093,27 @@ function toggle(list, v) {
   if (i >= 0) list.splice(i, 1); else list.push(v);
 }
 
+/* Light dismiss. A click that closes an open overlay is spent doing that and
+   nothing else — it does not also fire whatever it landed on. Without this the
+   click you use to get rid of the row menu lands on a row and opens the app, and
+   the same click would tear down the drawer or strand a half-typed rename.
+   First click dismisses, second acts, the way every menu behaves.
+   Only the topmost overlay closes, so overlays unwind one at a time. */
+function dismissOutside(el) {
+  /* A modal is blocking, not light-dismissable: its own buttons are the way out. */
+  if (S.modal) return false;
+  if (S.renaming && !(el.closest && el.closest('.renamecell'))) { saveRename(); return true; }
+  if (S.menu) {
+    if (el.closest && el.closest('.menu')) return false;          // a choice inside it
+    /* Moving between triggers is how menus work, so a trigger still acts. */
+    const k = el.getAttribute && el.getAttribute('data-fk');
+    if (k === 'filter' || k === 'status' || (k && k.indexOf('more:') === 0)) return false;
+    S.menu = null; commit(); return true;
+  }
+  if (S.drawer && !(el.closest && el.closest('#vhdrawer'))) { act('dclose'); return true; }
+  return false;
+}
+
 function wireApp() {
   appEl.querySelectorAll('[data-fk]').forEach(el => {
     const k = el.getAttribute('data-fk');
@@ -1107,7 +1130,11 @@ function wireApp() {
         renderInspector(); };
       return;
     }
-    el.onclick = e => { e.stopPropagation(); act(k); };
+    el.onclick = e => {
+      e.stopPropagation();
+      if (dismissOutside(el)) return;
+      act(k);
+    };
     if (el.tagName !== 'BUTTON') {
       el.onkeydown = e => {
         if (e.key !== 'Enter' && e.key !== ' ') return;
@@ -1277,17 +1304,9 @@ function commit(stepId) {
 }
 
 /* Clicking the surface closes any open menu, the way a popover behaves. */
-appEl.addEventListener('click', e => {
-  if (S.modal) return;          // the modal is blocking; only its own buttons act
-  /* Clicking away commits the open name field — an inline edit that silently
-     discards what you typed is worse than one that keeps it. */
-  if (S.renaming && !(e.target.id === 'rbox')) { saveRename(); return; }
-  /* A click on the listing behind the drawer dismisses it, the way any overlay
-     behaves. Controls inside the drawer stop their own clicks, so only genuinely
-     outside clicks reach this. */
-  if (S.drawer && !e.target.closest('#vhdrawer')) { S.menu = null; act('dclose'); return; }
-  if (S.menu) { S.menu = null; commit(); }
-});
+/* Clicks on bare surface — no control under them — go through the same rule, so
+   dismissing behaves identically whether you land on a row or on empty space. */
+appEl.addEventListener('click', e => { dismissOutside(e.target); });
 
 /* ═══ the step graph ═════════════════════════════════════════════════════ */
 function reset() {
